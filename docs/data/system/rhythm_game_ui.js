@@ -18,18 +18,42 @@
       laneIndexes: [1, 2],
       laneCount: 2,
       label: '初級',
+      buttonLabel: '初級(F/J)',
     },
     advanced: {
       keyCodes: ['KeyE', 'KeyF', 'KeyJ', 'KeyI'],
       laneIndexes: [0, 1, 2, 3],
       laneCount: 4,
       label: '上級',
+      buttonLabel: '上級(E/F/J/I)',
+    },
+    hidden: {
+      keyCodes: ['KeyE', 'KeyF', 'KeyJ', 'KeyI'],
+      laneIndexes: [0, 1, 2, 3],
+      laneCount: 4,
+      label: '隠し',
+      buttonLabel: '隠し(E/F/J/I)',
+    },
+  };
+  const GAME_THEMES = {
+    default: {
+      title: 'アイの生成演算子',
+      warningCopy: '音楽に空いた「アイ」の穴を、生成演算子で埋めてください。スピーカーやイヤホンの音量に注意してください。',
+      assetPrefix: 'a_d_',
+      hideTargets: false,
+    },
+    hidden: {
+      title: 'アイの消滅演算子',
+      warningCopy: '音楽に残る「アイ」を、消滅演算子で消してください。スピーカーやイヤホンの音量に注意してください。',
+      assetPrefix: 'a_',
+      hideTargets: true,
     },
   };
   const FALL_DURATION = 1.8;
-  const HIT_WINDOW = 0.18;
+  const HIT_WINDOW = 0.25;
   const FEEDBACK_DURATION = 180;
   const HIT_NOTE_RELEASE_DELAY = 180;
+  const STAR_BURST_DURATION = 520;
   const DIFFICULTY_ORDER = ['beginner', 'advanced'];
 
   function getLaneFeedbackClass(resultType) {
@@ -38,6 +62,32 @@
     }
 
     return 'is-miss';
+  }
+
+  function getHitStarCount(combo) {
+    return combo >= 5 ? 2 : 1;
+  }
+
+  function createHitStarDescriptors(combo, random) {
+    const pickRandom = typeof random === 'function' ? random : Math.random;
+
+    return Array.from({ length: getHitStarCount(combo) }, function () {
+      const angle = (-140 + pickRandom() * 100) * Math.PI / 180;
+      const distance = 52 + pickRandom() * 28;
+      const scale = 0.9 + pickRandom() * 0.35;
+      const rotation = -28 + pickRandom() * 56;
+
+      return {
+        x: Math.cos(angle) * distance,
+        y: Math.sin(angle) * distance,
+        scale: scale,
+        rotation: rotation,
+      };
+    });
+  }
+
+  function getHitStarClassName(combo) {
+    return combo >= 5 ? 'rhythm-game__burst-star is-rainbow' : 'rhythm-game__burst-star';
   }
 
   function calculateNoteTargetTop(metrics) {
@@ -53,24 +103,50 @@
     return Boolean(options.selectedDifficulty) && options.running === false;
   }
 
+  function getAvailableDifficultyOrder(hiddenUnlocked) {
+    return hiddenUnlocked ? ['beginner', 'advanced', 'hidden'] : DIFFICULTY_ORDER.slice();
+  }
+
+  function getPlaybackTime(options) {
+    if (!options.running) {
+      return options.elapsedBeforePause;
+    }
+
+    if (Number.isFinite(options.audioCurrentTime)) {
+      return options.audioCurrentTime;
+    }
+
+    return options.elapsedBeforePause + (options.now - options.startedAt) / 1000;
+  }
+
   function getLayoutReferenceLaneIndex(activeLaneIndexes) {
     return activeLaneIndexes[0];
   }
 
-  function getNoteAppearanceClass(note) {
+  function getNoteAppearanceClass(note, options) {
+    const settings = options || {};
     if (note.wasSuccessful) {
       return 'is-hit-note';
     }
 
-    if (note.shouldPress) {
+    if (note.shouldPress && !settings.hideTargets) {
       return 'is-target';
     }
 
     return '';
   }
 
-  function getLaneKeyAssetPath(binding) {
-    return './data/system/rhythm_game_assets/a_' + binding.label + '.svg';
+  function getGameTheme(difficulty) {
+    if (difficulty === 'hidden') {
+      return GAME_THEMES.hidden;
+    }
+
+    return GAME_THEMES.default;
+  }
+
+  function getLaneKeyAssetPath(binding, theme) {
+    const activeTheme = theme || GAME_THEMES.default;
+    return './data/system/rhythm_game_assets/' + activeTheme.assetPrefix + binding.label + '.svg';
   }
 
   function hideTyranoMessageLayers(targetRoot) {
@@ -118,14 +194,52 @@
   }
 
   function getAdjacentDifficulty(currentDifficulty, direction) {
+    const availableDifficulties = arguments[2] || DIFFICULTY_ORDER;
     const offset = direction >= 0 ? 1 : -1;
-    const currentIndex = DIFFICULTY_ORDER.indexOf(currentDifficulty);
+    const currentIndex = availableDifficulties.indexOf(currentDifficulty);
 
     if (currentIndex === -1) {
-      return offset > 0 ? DIFFICULTY_ORDER[0] : DIFFICULTY_ORDER[DIFFICULTY_ORDER.length - 1];
+      return offset > 0 ? availableDifficulties[0] : availableDifficulties[availableDifficulties.length - 1];
     }
 
-    return DIFFICULTY_ORDER[(currentIndex + offset + DIFFICULTY_ORDER.length) % DIFFICULTY_ORDER.length];
+    return availableDifficulties[(currentIndex + offset + availableDifficulties.length) % availableDifficulties.length];
+  }
+
+  function createDifficultyButtonsMarkup(hiddenUnlocked) {
+    return getAvailableDifficultyOrder(hiddenUnlocked)
+      .map(function (difficulty) {
+        const config = getDifficultyConfig(difficulty);
+        return '<button type="button" class="rhythm-game__difficulty" data-difficulty="' +
+          difficulty +
+          '">' +
+          config.buttonLabel +
+          '</button>';
+      })
+      .join('');
+  }
+
+  function shouldUnlockHiddenStage(options) {
+    return options.difficulty === 'advanced' && options.payload && options.payload.resultLabel === 'CLEAR';
+  }
+
+  function getResultUnlockMessage(hiddenUnlockedNow) {
+    if (!hiddenUnlockedNow) {
+      return '';
+    }
+
+    return '隠しステージ「アイの消滅演算子」が出現しました。';
+  }
+
+  function getDifficultyToFocus(options) {
+    if (options.justUnlockedHiddenStage && options.hiddenUnlocked) {
+      return 'hidden';
+    }
+
+    if (options.selectedDifficulty && getAvailableDifficultyOrder(options.hiddenUnlocked).indexOf(options.selectedDifficulty) !== -1) {
+      return options.selectedDifficulty;
+    }
+
+    return getAvailableDifficultyOrder(options.hiddenUnlocked)[0];
   }
 
   function createResultOverlayContent(options) {
@@ -136,12 +250,14 @@
     ].join(' / ');
   }
 
-  function createGameShellMarkup() {
+  function createGameShellMarkup(options) {
+    const settings = options || {};
+    const theme = getGameTheme(settings.selectedDifficulty);
     const laneMarkup = KEY_BINDINGS.map(function (binding, index) {
       return [
         '<div class="rhythm-game__lane" data-lane="', index, '">',
         '  <div class="rhythm-game__lane-key">',
-        '    <img class="rhythm-game__lane-key-image" src="', getLaneKeyAssetPath(binding), '" alt="a hat (', binding.label, ')" />',
+        '    <img class="rhythm-game__lane-key-image" src="', getLaneKeyAssetPath(binding, theme), '" alt="a hat (', binding.label, ')" />',
         '  </div>',
         '</div>',
       ].join('');
@@ -150,18 +266,16 @@
     return [
       '<section class="rhythm-game" data-state="idle">',
       '  <div class="rhythm-game__overlay rhythm-game__overlay--start" data-role="start-overlay" data-state="ready">',
-      '    <p class="rhythm-game__title">アイの生成演算子</p>',
+      '    <p class="rhythm-game__title" data-role="start-title">', theme.title, '</p>',
       '    <p class="rhythm-game__warning">音が出ます</p>',
-      '    <p class="rhythm-game__warning-copy">音楽に空いた「アイ」の穴を、生成演算子で埋めてください。スピーカーやイヤホンの音量に注意してください。</p>',
-      '    <div class="rhythm-game__difficulty-buttons">',
-      '      <button type="button" class="rhythm-game__difficulty" data-difficulty="beginner">初級(F/J)</button>',
-      '      <button type="button" class="rhythm-game__difficulty" data-difficulty="advanced">上級(E/F/J/I)</button>',
-      '    </div>',
+      '    <p class="rhythm-game__warning-copy" data-role="start-copy">', theme.warningCopy, '</p>',
+      '    <div class="rhythm-game__difficulty-buttons" data-role="difficulty-buttons">', createDifficultyButtonsMarkup(Boolean(settings.hiddenUnlocked)), '</div>',
       '    <p class="rhythm-game__start-hint">難易度を選び、スペースキーで開始</p>',
       '  </div>',
       '  <div class="rhythm-game__overlay rhythm-game__overlay--result" data-role="result-overlay" hidden>',
       '    <p class="rhythm-game__result-title" data-role="result-title">RESULT</p>',
       '    <p class="rhythm-game__result-copy" data-role="result-copy"></p>',
+      '    <p class="rhythm-game__result-hint rhythm-game__result-hint--unlock" data-role="unlock-hint" hidden></p>',
       '    <p class="rhythm-game__result-hint">Returnキーで開始画面へ</p>',
       '  </div>',
       '  <div class="rhythm-game__overlay rhythm-game__overlay--pause" data-role="pause-overlay" hidden>',
@@ -198,7 +312,10 @@
     const pauseOverlay = shell.querySelector('[data-role="pause-overlay"]');
     const resultTitleNode = shell.querySelector('[data-role="result-title"]');
     const resultCopyNode = shell.querySelector('[data-role="result-copy"]');
-    const difficultyButtons = Array.from(shell.querySelectorAll('.rhythm-game__difficulty'));
+    const unlockHintNode = shell.querySelector('[data-role="unlock-hint"]');
+    const startTitleNode = shell.querySelector('[data-role="start-title"]');
+    const startCopyNode = shell.querySelector('[data-role="start-copy"]');
+    const difficultyButtonsContainer = shell.querySelector('[data-role="difficulty-buttons"]');
     const startHintNode = shell.querySelector('.rhythm-game__start-hint');
     const scoreNode = shell.querySelector('[data-role="score"]');
     const comboNode = shell.querySelector('[data-role="combo"]');
@@ -217,9 +334,14 @@
     let running = false;
     let gamePhase = 'ready';
     let feedbackTimers = [];
+    let starTimers = [];
     let noteReleaseTimers = [];
     let noteTargetTop = 0;
     let selectedDifficulty = '';
+    let hiddenUnlocked = false;
+    let justUnlockedHiddenStage = false;
+    let currentTheme = getGameTheme('');
+    let difficultyButtons = [];
     let activeLaneIndexes = [0, 1, 2, 3];
 
     function renderHud() {
@@ -247,8 +369,44 @@
         root.clearTimeout(timerId);
       });
       feedbackTimers = [];
+      starTimers.forEach(function (timerId) {
+        root.clearTimeout(timerId);
+      });
+      starTimers = [];
       laneKeyNodes.forEach(function (laneKeyNode) {
         laneKeyNode.classList.remove('is-hit', 'is-miss');
+        laneKeyNode.querySelectorAll('.rhythm-game__burst-star').forEach(function (starNode) {
+          starNode.remove();
+        });
+      });
+    }
+
+    function spawnHitStars(laneIndex, combo) {
+      const laneKeyNode = laneKeyNodes[laneIndex];
+
+      if (!laneKeyNode) {
+        return;
+      }
+
+      createHitStarDescriptors(combo, root.Math.random).forEach(function (descriptor) {
+        const starNode = root.document.createElement('span');
+        let timerId;
+
+        starNode.className = getHitStarClassName(combo);
+        starNode.style.setProperty('--star-x', descriptor.x.toFixed(2) + 'px');
+        starNode.style.setProperty('--star-y', descriptor.y.toFixed(2) + 'px');
+        starNode.style.setProperty('--star-scale', descriptor.scale.toFixed(2));
+        starNode.style.setProperty('--star-rotation', descriptor.rotation.toFixed(2) + 'deg');
+        laneKeyNode.appendChild(starNode);
+
+        timerId = root.setTimeout(function () {
+          starNode.remove();
+          starTimers = starTimers.filter(function (activeTimerId) {
+            return activeTimerId !== timerId;
+          });
+        }, STAR_BURST_DURATION);
+
+        starTimers.push(timerId);
       });
     }
 
@@ -278,7 +436,7 @@
     function buildNoteElement(note) {
       const element = root.document.createElement('div');
       element.className = 'rhythm-game__note';
-      const appearanceClass = getNoteAppearanceClass(note);
+      const appearanceClass = getNoteAppearanceClass(note, currentTheme);
       element.dataset.noteId = String(note.id);
       element.textContent = note.char;
       if (appearanceClass) {
@@ -289,6 +447,29 @@
       return element;
     }
 
+    function syncLaneKeyAssets() {
+      laneNodes.forEach(function (laneNode, laneIndex) {
+        const imageNode = laneNode.querySelector('.rhythm-game__lane-key-image');
+        if (imageNode) {
+          imageNode.src = getLaneKeyAssetPath(KEY_BINDINGS[laneIndex], currentTheme);
+        }
+      });
+    }
+
+    function bindDifficultyButtons() {
+      difficultyButtons = Array.from(shell.querySelectorAll('.rhythm-game__difficulty'));
+      difficultyButtons.forEach(function (buttonNode) {
+        buttonNode.addEventListener('click', function () {
+          applyDifficulty(buttonNode.dataset.difficulty);
+        });
+      });
+    }
+
+    function syncDifficultyButtons() {
+      difficultyButtonsContainer.innerHTML = createDifficultyButtonsMarkup(hiddenUnlocked);
+      bindDifficultyButtons();
+    }
+
     function applyDifficulty(difficulty) {
       const difficultyConfig = getDifficultyConfig(difficulty);
 
@@ -297,8 +478,16 @@
       }
 
       selectedDifficulty = difficulty;
+      currentTheme = getGameTheme(difficulty);
       activeLaneIndexes = difficultyConfig.laneIndexes.slice();
       shell.dataset.laneCount = String(difficultyConfig.laneCount);
+      if (startTitleNode) {
+        startTitleNode.textContent = currentTheme.title;
+      }
+      if (startCopyNode) {
+        startCopyNode.textContent = currentTheme.warningCopy;
+      }
+      syncLaneKeyAssets();
       difficultyButtons.forEach(function (buttonNode) {
         buttonNode.dataset.selected = buttonNode.dataset.difficulty === difficulty ? 'true' : 'false';
       });
@@ -324,11 +513,13 @@
     }
 
     function getCurrentTime() {
-      if (!running) {
-        return elapsedBeforePause;
-      }
-
-      return elapsedBeforePause + (root.performance.now() - startedAt) / 1000;
+      return getPlaybackTime({
+        running: running,
+        elapsedBeforePause: elapsedBeforePause,
+        audioCurrentTime: audio.currentTime,
+        startedAt: startedAt,
+        now: root.performance.now(),
+      });
     }
 
     function updateResult(message) {
@@ -341,6 +532,8 @@
       resultOverlay.hidden = true;
       resultTitleNode.textContent = 'RESULT';
       resultCopyNode.textContent = '';
+      unlockHintNode.hidden = true;
+      unlockHintNode.textContent = '';
     }
 
     function hidePauseOverlay() {
@@ -354,8 +547,17 @@
     }
 
     function showStartOverlay(stateLabel) {
+      syncDifficultyButtons();
       startOverlay.hidden = false;
       startOverlay.dataset.state = stateLabel || 'ready';
+      applyDifficulty(
+        getDifficultyToFocus({
+          selectedDifficulty: selectedDifficulty,
+          hiddenUnlocked: hiddenUnlocked,
+          justUnlockedHiddenStage: justUnlockedHiddenStage,
+        }),
+      );
+      justUnlockedHiddenStage = false;
       hideResultOverlay();
       hidePauseOverlay();
     }
@@ -369,6 +571,8 @@
         difficultyLabel: getDifficultyLabel(options.difficulty),
         payload: options.payload,
       });
+      unlockHintNode.textContent = getResultUnlockMessage(justUnlockedHiddenStage);
+      unlockHintNode.hidden = unlockHintNode.textContent === '';
     }
 
     function finishGame(didClear) {
@@ -387,6 +591,11 @@
         maxCombo: state.maxCombo,
       });
       const payload = core.createResultPayload(state);
+      justUnlockedHiddenStage = false;
+      if (shouldUnlockHiddenStage({ difficulty: selectedDifficulty, payload: payload }) && !hiddenUnlocked) {
+        hiddenUnlocked = true;
+        justUnlockedHiddenStage = true;
+      }
       shell.dataset.state = didClear ? 'cleared' : 'game-over';
       showResultOverlay({
         difficulty: selectedDifficulty,
@@ -531,7 +740,13 @@
 
       if (!startOverlay.hidden && (event.code === 'ArrowLeft' || event.code === 'ArrowRight')) {
         event.preventDefault();
-        applyDifficulty(getAdjacentDifficulty(selectedDifficulty, event.code === 'ArrowRight' ? 1 : -1));
+        applyDifficulty(
+          getAdjacentDifficulty(
+            selectedDifficulty,
+            event.code === 'ArrowRight' ? 1 : -1,
+            getAvailableDifficultyOrder(hiddenUnlocked),
+          ),
+        );
         return;
       }
 
@@ -583,11 +798,12 @@
       note.hit = true;
       flashLaneFeedback(lane, result.outcome);
       if (result.outcome === 'hit') {
+        spawnHitStars(lane, result.state.combo);
         const element = noteElements.get(note.id);
         note.wasSuccessful = true;
         if (element) {
           element.classList.remove('is-target');
-          element.classList.add(getNoteAppearanceClass(note));
+          element.classList.add(getNoteAppearanceClass(note, currentTheme));
           noteReleaseTimers.push(
             root.setTimeout(function () {
               element.remove();
@@ -637,13 +853,10 @@
       rafId = root.requestAnimationFrame(frame);
     }
 
-    difficultyButtons.forEach(function (buttonNode) {
-      buttonNode.addEventListener('click', function () {
-        applyDifficulty(buttonNode.dataset.difficulty);
-      });
-    });
+    bindDifficultyButtons();
     root.addEventListener('keydown', onKeyDown);
     shell.dataset.laneCount = '4';
+    syncLaneKeyAssets();
     renderHud();
 
     return {
@@ -694,13 +907,23 @@
     createGameController: createGameController,
     autoMount: autoMount,
     createResultOverlayContent: createResultOverlayContent,
+    getAvailableDifficultyOrder: getAvailableDifficultyOrder,
+    getDifficultyToFocus: getDifficultyToFocus,
     getAdjacentDifficulty: getAdjacentDifficulty,
+    getGameTheme: getGameTheme,
     getLaneFeedbackClass: getLaneFeedbackClass,
+    getHitStarCount: getHitStarCount,
+    createHitStarDescriptors: createHitStarDescriptors,
+    getHitStarClassName: getHitStarClassName,
+    getLaneKeyAssetPath: getLaneKeyAssetPath,
     hideTyranoMessageLayers: hideTyranoMessageLayers,
     calculateNoteTargetTop: calculateNoteTargetTop,
     getDifficultyConfig: getDifficultyConfig,
     canStartFromSpace: canStartFromSpace,
+    getPlaybackTime: getPlaybackTime,
     getLayoutReferenceLaneIndex: getLayoutReferenceLaneIndex,
     getNoteAppearanceClass: getNoteAppearanceClass,
+    getResultUnlockMessage: getResultUnlockMessage,
+    shouldUnlockHiddenStage: shouldUnlockHiddenStage,
   };
 });

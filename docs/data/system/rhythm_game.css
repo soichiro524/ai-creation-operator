@@ -73,14 +73,15 @@
 }
 
 .rhythm-game__difficulty-buttons {
-  display: flex;
-  justify-content: center;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
-  flex-wrap: wrap;
 }
 
 .rhythm-game__difficulty {
-  min-width: 160px;
+  width: 100%;
   padding: 12px 18px;
   border: 2px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
@@ -178,6 +179,7 @@
   left: 50%;
   bottom: 28px;
   transform: translateX(-50%);
+  overflow: visible;
   width: 72px;
   height: 72px;
   display: grid;
@@ -218,6 +220,43 @@
     0 0 0 4px rgba(255, 123, 123, 0.18),
     0 0 24px rgba(255, 123, 123, 0.68);
   transform: translateX(-50%) scale(1.06);
+}
+
+.rhythm-game__burst-star {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 140px;
+  height: 140px;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+  background: radial-gradient(circle at 30% 30%, #f6ffdc 0%, #9cff99 42%, #25b24a 100%);
+  clip-path: polygon(50% 0%, 61% 34%, 98% 35%, 68% 57%, 79% 92%, 50% 70%, 21% 92%, 32% 57%, 2% 35%, 39% 34%);
+  filter: drop-shadow(0 0 10px rgba(104, 255, 147, 0.85));
+  animation: rhythm-game-burst-star 520ms ease-out forwards;
+}
+
+.rhythm-game__burst-star.is-rainbow {
+  background: conic-gradient(from 180deg, #ff4d6d 0deg, #ffb84d 60deg, #fff36a 120deg, #5cff8d 180deg, #52b6ff 240deg, #b26dff 300deg, #ff4d6d 360deg);
+  filter: drop-shadow(0 0 16px rgba(255, 255, 255, 0.9));
+}
+
+@keyframes rhythm-game-burst-star {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--star-x, 0px)), calc(-50% + var(--star-y, -56px))) scale(var(--star-scale, 1)) rotate(var(--star-rotation, 0deg));
+  }
 }
 
 .rhythm-game__note {
