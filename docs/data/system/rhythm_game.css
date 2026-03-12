@@ -1,0 +1,279 @@
+[data-rhythm-game-root="true"] {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 9999998;
+}
+
+.rhythm-game {
+  position: relative;
+  width: min(920px, calc(100vw - 32px));
+  height: min(720px, calc(100vh - 48px));
+  margin: 24px auto;
+  overflow: hidden;
+  pointer-events: auto;
+  border: 4px solid #10233f;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top, rgba(255, 242, 178, 0.2), transparent 40%),
+    linear-gradient(180deg, #09111f 0%, #132b4c 55%, #17355a 100%);
+  box-shadow: 0 24px 60px rgba(3, 9, 19, 0.45);
+}
+
+.rhythm-game__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: grid;
+  place-content: center;
+  gap: 16px;
+  padding: 32px;
+  text-align: center;
+  color: #fff8d0;
+  background: rgba(5, 10, 18, 0.8);
+}
+
+.rhythm-game__overlay[hidden] {
+  display: none !important;
+}
+
+.rhythm-game__warning {
+  margin: 0;
+  font-size: clamp(40px, 7vw, 72px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ffd04d;
+  text-shadow: 0 0 18px rgba(255, 192, 0, 0.42);
+}
+
+.rhythm-game__title {
+  margin: 0;
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #f7fbff;
+}
+
+.rhythm-game__warning-copy {
+  margin: 0 auto;
+  max-width: 32rem;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.rhythm-game__overlay--result {
+  gap: 14px;
+}
+
+.rhythm-game__overlay--pause {
+  gap: 14px;
+}
+
+.rhythm-game__difficulty-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rhythm-game__difficulty {
+  min-width: 160px;
+  padding: 12px 18px;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #f6fbff;
+  background: rgba(9, 20, 36, 0.7);
+  cursor: pointer;
+}
+
+.rhythm-game__difficulty[data-selected="true"] {
+  border-color: #ffd04d;
+  color: #10233f;
+  background: linear-gradient(135deg, #ffe06f 0%, #ff9d42 100%);
+}
+
+.rhythm-game__start-hint {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fef7cf;
+}
+
+.rhythm-game__start {
+  justify-self: center;
+  min-width: 220px;
+  padding: 14px 24px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #10233f;
+  background: linear-gradient(135deg, #ffe06f 0%, #ff9d42 100%);
+  cursor: pointer;
+}
+
+.rhythm-game__hud {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rhythm-game__song-title {
+  position: absolute;
+  top: 68px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  text-align: center;
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  color: rgba(236, 243, 255, 0.72);
+}
+
+.rhythm-game__metric {
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 700;
+  color: #f6fbff;
+  background: rgba(8, 20, 39, 0.6);
+}
+
+.rhythm-game__lanes {
+  position: absolute;
+  inset: 88px 18px 18px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  border-radius: 24px;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 24.5%, transparent 24.5%, transparent 25.5%, rgba(255, 255, 255, 0.06) 25.5%, rgba(255, 255, 255, 0.06) 49.5%, transparent 49.5%, transparent 50.5%, rgba(255, 255, 255, 0.06) 50.5%, rgba(255, 255, 255, 0.06) 74.5%, transparent 74.5%, transparent 75.5%, rgba(255, 255, 255, 0.06) 75.5%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(0, 0, 0, 0.2) 100%);
+}
+
+.rhythm-game[data-lane-count="2"] .rhythm-game__lanes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rhythm-game__lane {
+  position: relative;
+  overflow: hidden;
+}
+
+.rhythm-game__lane[hidden] {
+  display: none !important;
+}
+
+.rhythm-game__lane-key {
+  position: absolute;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  background: rgba(9, 20, 36, 0.65);
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.rhythm-game__lane-key-image {
+  display: block;
+  width: 56px;
+  height: auto;
+  filter: brightness(0) saturate(100%) invert(94%) sepia(32%) saturate(506%) hue-rotate(318deg) brightness(105%) contrast(103%);
+  pointer-events: none;
+  user-select: none;
+}
+
+.rhythm-game__lane-key.is-hit {
+  border-color: rgba(122, 255, 164, 0.95);
+  background: rgba(20, 92, 48, 0.88);
+  box-shadow:
+    0 0 0 4px rgba(122, 255, 164, 0.2),
+    0 0 24px rgba(122, 255, 164, 0.72);
+  transform: translateX(-50%) scale(1.06);
+}
+
+.rhythm-game__lane-key.is-miss {
+  border-color: rgba(255, 123, 123, 0.95);
+  background: rgba(108, 26, 26, 0.9);
+  box-shadow:
+    0 0 0 4px rgba(255, 123, 123, 0.18),
+    0 0 24px rgba(255, 123, 123, 0.68);
+  transform: translateX(-50%) scale(1.06);
+}
+
+.rhythm-game__note {
+  position: absolute;
+  top: -52px;
+  left: 50%;
+  width: 108px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  transform: translate(-50%, 0);
+  font-size: 30px;
+  font-weight: 800;
+  color: #10233f;
+  background: linear-gradient(180deg, #fff6cf 0%, #ffd15f 100%);
+  box-shadow: 0 14px 20px rgba(0, 0, 0, 0.28);
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.rhythm-game__note.is-target {
+  border: 3px dashed rgba(255, 245, 186, 0.92);
+  color: #fff7d1;
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.rhythm-game__note.is-hit-note {
+  border: 0;
+  color: #10233f;
+  background: linear-gradient(180deg, #fff6cf 0%, #ffd15f 100%);
+  box-shadow: 0 14px 20px rgba(0, 0, 0, 0.28);
+}
+
+.rhythm-game__result-title {
+  margin: 0;
+  font-size: clamp(34px, 6vw, 56px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #fff5b6;
+}
+
+.rhythm-game__result-copy {
+  margin: 0 auto;
+  max-width: 32rem;
+  font-size: 22px;
+  line-height: 1.7;
+}
+
+.rhythm-game__result-hint {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fef7cf;
+}
