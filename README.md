@@ -1,14 +1,25 @@
-# 走るか寝るかするメロス
+# アイの生成演算子
 
 ## 概要
 
-ティラノスクリプトのサンプルコード。
+歌詞の中に現れる「アイ」を見極めて打つ、ブラウザ向けリズムゲームです。
 
-* [テストプレイ](https://appi-github.github.io/tyrano_sample/)
+## 遊び方
 
-## ライセンス
+- ゲーム開始前に難易度を選び、`Space` キーで開始します。
+- 初級は `F` / `J`、上級は `E` / `F` / `J` / `I` を使います。
+- 「押すべき文字」がボタンに重なったタイミングで対応キーを押すと成功です。
+- `Space` キーで停止、停止中はもう一度 `Space` で再開、`Esc` で開始画面に戻れます。
+- 上級をクリアすると...？
 
-ここで作成されたスクリプト(`first.ks`)に関してはCC0。ティラノスクリプトについては[配布元](https://tyrano.jp/)のライセンスに従います。`docs/bgimage`以下にあるファイルは、Pexcelsからダウンロードしたものです。
+## 公開ページ
 
-* `run.jpg` by Maksim Romashkin
-* `sleep.jpg` by Andrea Piacquadio
+- https://soichiro524.github.io/ai-creation-operator/
+
+## 素材クレジット
+
+- 音楽: シャイニングスター by [魔王魂](https://maou.audio/14_shining_star/)
+
+<!-- ## ローカル確認
+
+静的ファイルとして `docs/` を配信すれば動きます。例: `python3 -m http.server 8000 --directory docs` -->
