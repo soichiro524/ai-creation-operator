@@ -2,6 +2,8 @@
   position: fixed;
   inset: 0;
   width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -10,8 +12,8 @@
 
 .rhythm-game {
   position: relative;
-  width: min(920px, calc(100vw - 32px));
-  height: min(720px, calc(100vh - 48px));
+  width: min(920px, calc(100vw - 20px));
+  height: min(720px, calc(100dvh - 20px));
   margin: 24px auto;
   overflow: hidden;
   pointer-events: auto;
@@ -34,6 +36,7 @@
   text-align: center;
   color: #fff8d0;
   background: rgba(5, 10, 18, 0.8);
+  touch-action: manipulation;
 }
 
 .rhythm-game__overlay[hidden] {
@@ -90,6 +93,7 @@
   color: #f6fbff;
   background: rgba(9, 20, 36, 0.7);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .rhythm-game__difficulty[data-selected="true"] {
@@ -116,6 +120,7 @@
   color: #10233f;
   background: linear-gradient(135deg, #ffe06f 0%, #ff9d42 100%);
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 .rhythm-game__hud {
@@ -180,14 +185,16 @@
   bottom: 28px;
   transform: translateX(-50%);
   overflow: visible;
-  width: 72px;
-  height: 72px;
+  width: clamp(72px, 13vw, 92px);
+  height: clamp(72px, 13vw, 92px);
   display: grid;
   place-items: center;
   padding: 0;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 24px;
   background: rgba(9, 20, 36, 0.65);
+  cursor: pointer;
+  touch-action: manipulation;
   transition:
     border-color 120ms ease,
     box-shadow 120ms ease,
@@ -197,7 +204,7 @@
 
 .rhythm-game__lane-key-image {
   display: block;
-  width: 56px;
+  width: clamp(56px, 10vw, 72px);
   height: auto;
   filter: brightness(0) saturate(100%) invert(94%) sepia(32%) saturate(506%) hue-rotate(318deg) brightness(105%) contrast(103%);
   pointer-events: none;
@@ -315,4 +322,137 @@
   font-size: 18px;
   font-weight: 700;
   color: #fef7cf;
+}
+
+
+@media (max-width: 900px) {
+  [data-rhythm-game-root="true"] {
+    padding: 4px;
+  }
+
+  .rhythm-game {
+    width: calc(100vw - 8px);
+    height: calc(100dvh - 8px);
+    margin: 0;
+    border-width: 3px;
+    border-radius: 20px;
+  }
+
+  .rhythm-game__overlay {
+    gap: 12px;
+    padding: 20px 16px;
+  }
+
+  .rhythm-game__warning {
+    font-size: clamp(32px, 10vw, 52px);
+  }
+
+  .rhythm-game__title {
+    font-size: clamp(24px, 7vw, 38px);
+  }
+
+  .rhythm-game__warning-copy,
+  .rhythm-game__result-copy {
+    font-size: 16px;
+    line-height: 1.55;
+  }
+
+  .rhythm-game__difficulty-buttons {
+    width: 100%;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 10px;
+  }
+
+  .rhythm-game__difficulty,
+  .rhythm-game__result-hint,
+  .rhythm-game__start-hint {
+    font-size: 16px;
+  }
+
+  .rhythm-game__hud {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .rhythm-game__metric {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .rhythm-game__song-title {
+    top: 56px;
+    padding: 0 12px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+  }
+
+  .rhythm-game__lanes {
+    inset: 86px 10px 10px;
+    gap: 6px;
+    border-radius: 18px;
+  }
+
+  .rhythm-game__lane-key {
+    bottom: 16px;
+  }
+
+  .rhythm-game__note {
+    width: min(108px, calc(100% - 8px));
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 900px) and (orientation: portrait) {
+  .rhythm-game {
+    width: calc(100vw - 6px);
+    height: calc(100dvh - 6px);
+  }
+
+  .rhythm-game__hud {
+    justify-content: center;
+  }
+
+  .rhythm-game__metric {
+    flex: 1 1 calc(33.333% - 6px);
+    min-width: 0;
+    text-align: center;
+  }
+
+  .rhythm-game__song-title {
+    top: 74px;
+  }
+
+  .rhythm-game__lanes {
+    inset: 112px 8px 8px;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .rhythm-game {
+    width: calc(100vw - 8px);
+    height: calc(100dvh - 8px);
+  }
+
+  .rhythm-game__hud {
+    flex-wrap: nowrap;
+  }
+
+  .rhythm-game__metric {
+    flex: 0 1 auto;
+  }
+
+  .rhythm-game__song-title {
+    top: 44px;
+  }
+
+  .rhythm-game__lanes {
+    inset: 70px 8px 8px;
+  }
+
+  .rhythm-game__lane-key {
+    bottom: 10px;
+  }
 }

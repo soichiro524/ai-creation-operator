@@ -103,6 +103,36 @@
     return Boolean(options.selectedDifficulty) && options.running === false;
   }
 
+  function canTapOverlayAction(options) {
+    if (!options) {
+      return false;
+    }
+
+    if (options.phase === 'ready') {
+      return canStartFromSpace({
+        selectedDifficulty: options.selectedDifficulty,
+        running: false,
+      });
+    }
+
+    return options.phase === 'paused' || options.phase === 'result';
+  }
+
+  function getLaneInputAction(options) {
+    if (!options || options.gamePhase !== 'playing') {
+      return null;
+    }
+
+    if (options.activeLaneIndexes.indexOf(options.lane) === -1) {
+      return null;
+    }
+
+    return {
+      type: 'lane',
+      lane: options.lane,
+    };
+  }
+
   function getAvailableDifficultyOrder(hiddenUnlocked) {
     return hiddenUnlocked ? ['beginner', 'advanced', 'hidden'] : DIFFICULTY_ORDER.slice();
   }
@@ -270,18 +300,18 @@
       '    <p class="rhythm-game__warning">音が出ます</p>',
       '    <p class="rhythm-game__warning-copy" data-role="start-copy">', theme.warningCopy, '</p>',
       '    <div class="rhythm-game__difficulty-buttons" data-role="difficulty-buttons">', createDifficultyButtonsMarkup(Boolean(settings.hiddenUnlocked)), '</div>',
-      '    <p class="rhythm-game__start-hint">難易度を選び、スペースキーで開始</p>',
+      '    <p class="rhythm-game__start-hint">難易度を選び、スペースキーまたはタップで開始</p>',
       '  </div>',
       '  <div class="rhythm-game__overlay rhythm-game__overlay--result" data-role="result-overlay" hidden>',
       '    <p class="rhythm-game__result-title" data-role="result-title">RESULT</p>',
       '    <p class="rhythm-game__result-copy" data-role="result-copy"></p>',
       '    <p class="rhythm-game__result-hint rhythm-game__result-hint--unlock" data-role="unlock-hint" hidden></p>',
-      '    <p class="rhythm-game__result-hint">Returnキーで開始画面へ</p>',
+      '    <p class="rhythm-game__result-hint">Returnキーまたはタップで開始画面へ</p>',
       '  </div>',
       '  <div class="rhythm-game__overlay rhythm-game__overlay--pause" data-role="pause-overlay" hidden>',
       '    <p class="rhythm-game__result-title">PAUSED</p>',
       '    <p class="rhythm-game__result-copy">演算を停止しています。</p>',
-      '    <p class="rhythm-game__result-hint">スペースキーでもう一度再開</p>',
+      '    <p class="rhythm-game__result-hint">スペースキーまたはタップでもう一度再開</p>',
       '    <p class="rhythm-game__result-hint">Escキーで開始画面へ</p>',
       '  </div>',
       '  <div class="rhythm-game__hud">',
@@ -289,7 +319,7 @@
       '    <span class="rhythm-game__metric" data-role="combo">COMBO 0</span>',
       '    <span class="rhythm-game__metric" data-role="life">LIFE 10</span>',
       '  </div>',
-      '  <div class="rhythm-game__song-title">スペースキーを押したら停止できる</div>',
+      '  <div class="rhythm-game__song-title">スペースキーまたはタップで停止できる</div>',
       '  <div class="rhythm-game__lanes">', laneMarkup, '</div>',
       '</section>',
     ].join('');
@@ -459,7 +489,8 @@
     function bindDifficultyButtons() {
       difficultyButtons = Array.from(shell.querySelectorAll('.rhythm-game__difficulty'));
       difficultyButtons.forEach(function (buttonNode) {
-        buttonNode.addEventListener('click', function () {
+        buttonNode.addEventListener('pointerup', function (event) {
+          event.preventDefault();
           applyDifficulty(buttonNode.dataset.difficulty);
         });
       });
@@ -494,7 +525,7 @@
       laneNodes.forEach(function (laneNode, laneIndex) {
         laneNode.hidden = activeLaneIndexes.indexOf(laneIndex) === -1;
       });
-      startHintNode.textContent = difficultyConfig.label + ' / スペースキーで開始';
+      startHintNode.textContent = difficultyConfig.label + ' / スペースキーまたはタップで開始';
     }
 
     function updateLayoutMetrics() {
@@ -674,6 +705,125 @@
       });
     }
 
+    function resetToReady() {
+      running = false;
+      gamePhase = 'ready';
+      elapsedBeforePause = 0;
+      shell.dataset.state = 'idle';
+      audio.pause();
+      audio.currentTime = 0;
+      clearNotes();
+      clearFeedbackTimers();
+      clearNoteReleaseTimers();
+      state = core.createInitialState({ life: 10 });
+      renderHud();
+      showStartOverlay('ready');
+    }
+
+    function handleLaneInput(lane) {
+      const action = getLaneInputAction({
+        lane: lane,
+        activeLaneIndexes: activeLaneIndexes,
+        gamePhase: gamePhase,
+      });
+
+      if (!action) {
+        return false;
+      }
+
+      const currentTime = getCurrentTime();
+      const note = core.findJudgableNote({
+        chart: chart,
+        lane: lane,
+        currentTime: currentTime,
+        hitWindow: HIT_WINDOW,
+      });
+
+      if (!note) {
+        flashLaneFeedback(lane, 'miss');
+        applyState(core.applyMiss(state));
+        return true;
+      }
+
+      const result = core.judgeNote({
+        state: state,
+        note: note,
+        lane: lane,
+        inputTime: currentTime,
+        hitWindow: HIT_WINDOW,
+      });
+      note.hit = true;
+      flashLaneFeedback(lane, result.outcome);
+      if (result.outcome === 'hit') {
+        spawnHitStars(lane, result.state.combo);
+        const element = noteElements.get(note.id);
+        note.wasSuccessful = true;
+        if (element) {
+          element.classList.remove('is-target');
+          element.classList.add(getNoteAppearanceClass(note, currentTheme));
+          noteReleaseTimers.push(
+            root.setTimeout(function () {
+              element.remove();
+              noteElements.delete(note.id);
+            }, HIT_NOTE_RELEASE_DELAY),
+          );
+        }
+      } else {
+        const element = noteElements.get(note.id);
+        if (element) {
+          element.remove();
+          noteElements.delete(note.id);
+        }
+      }
+      applyState(result.state);
+      return true;
+    }
+
+    function onStartOverlayPointerUp(event) {
+      if (event.target.closest('.rhythm-game__difficulty')) {
+        return;
+      }
+
+      if (!canTapOverlayAction({
+        phase: 'ready',
+        selectedDifficulty: selectedDifficulty,
+      })) {
+        return;
+      }
+
+      event.preventDefault();
+      startGame();
+    }
+
+    function onPauseOverlayPointerUp(event) {
+      if (!canTapOverlayAction({ phase: 'paused', selectedDifficulty: selectedDifficulty })) {
+        return;
+      }
+
+      event.preventDefault();
+      resumeGame();
+    }
+
+    function onResultOverlayPointerUp(event) {
+      if (!canTapOverlayAction({ phase: 'result', selectedDifficulty: selectedDifficulty })) {
+        return;
+      }
+
+      event.preventDefault();
+      shell.dataset.state = 'idle';
+      gamePhase = 'ready';
+      showStartOverlay('ready');
+    }
+
+    function bindLaneKeyPointers() {
+      laneKeyNodes.forEach(function (laneKeyNode, laneIndex) {
+        laneKeyNode.addEventListener('pointerup', function (event) {
+          event.preventDefault();
+          handleLaneInput(laneIndex);
+        });
+      });
+    }
+
     function pauseGame() {
       if (!running) {
         return;
@@ -717,18 +867,7 @@
 
       if (!pauseOverlay.hidden && event.code === 'Escape') {
         event.preventDefault();
-        running = false;
-        gamePhase = 'ready';
-        elapsedBeforePause = 0;
-        shell.dataset.state = 'idle';
-        audio.pause();
-        audio.currentTime = 0;
-        clearNotes();
-        clearFeedbackTimers();
-        clearNoteReleaseTimers();
-        state = core.createInitialState({ life: 10 });
-        renderHud();
-        showStartOverlay('ready');
+        resetToReady();
         return;
       }
 
@@ -774,51 +913,7 @@
       }
 
       event.preventDefault();
-      const currentTime = getCurrentTime();
-      const note = core.findJudgableNote({
-        chart: chart,
-        lane: lane,
-        currentTime: currentTime,
-        hitWindow: HIT_WINDOW,
-      });
-
-      if (!note) {
-        flashLaneFeedback(lane, 'miss');
-        applyState(core.applyMiss(state));
-        return;
-      }
-
-      const result = core.judgeNote({
-        state: state,
-        note: note,
-        lane: lane,
-        inputTime: currentTime,
-        hitWindow: HIT_WINDOW,
-      });
-      note.hit = true;
-      flashLaneFeedback(lane, result.outcome);
-      if (result.outcome === 'hit') {
-        spawnHitStars(lane, result.state.combo);
-        const element = noteElements.get(note.id);
-        note.wasSuccessful = true;
-        if (element) {
-          element.classList.remove('is-target');
-          element.classList.add(getNoteAppearanceClass(note, currentTheme));
-          noteReleaseTimers.push(
-            root.setTimeout(function () {
-              element.remove();
-              noteElements.delete(note.id);
-            }, HIT_NOTE_RELEASE_DELAY),
-          );
-        }
-      } else {
-        const element = noteElements.get(note.id);
-        if (element) {
-          element.remove();
-          noteElements.delete(note.id);
-        }
-      }
-      applyState(result.state);
+      handleLaneInput(lane);
     }
 
     function startGame() {
@@ -854,6 +949,10 @@
     }
 
     bindDifficultyButtons();
+    bindLaneKeyPointers();
+    startOverlay.addEventListener('pointerup', onStartOverlayPointerUp);
+    pauseOverlay.addEventListener('pointerup', onPauseOverlayPointerUp);
+    resultOverlay.addEventListener('pointerup', onResultOverlayPointerUp);
     root.addEventListener('keydown', onKeyDown);
     shell.dataset.laneCount = '4';
     syncLaneKeyAssets();
@@ -869,6 +968,9 @@
         clearFeedbackTimers();
         clearNoteReleaseTimers();
         root.removeEventListener('keydown', onKeyDown);
+        startOverlay.removeEventListener('pointerup', onStartOverlayPointerUp);
+        pauseOverlay.removeEventListener('pointerup', onPauseOverlayPointerUp);
+        resultOverlay.removeEventListener('pointerup', onResultOverlayPointerUp);
         clearNotes();
         rootElement.innerHTML = '';
       },
@@ -920,6 +1022,8 @@
     calculateNoteTargetTop: calculateNoteTargetTop,
     getDifficultyConfig: getDifficultyConfig,
     canStartFromSpace: canStartFromSpace,
+    canTapOverlayAction: canTapOverlayAction,
+    getLaneInputAction: getLaneInputAction,
     getPlaybackTime: getPlaybackTime,
     getLayoutReferenceLaneIndex: getLayoutReferenceLaneIndex,
     getNoteAppearanceClass: getNoteAppearanceClass,
